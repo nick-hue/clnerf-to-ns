@@ -1,0 +1,52 @@
+# config.yaml
+# -------------------------------------------------------------------
+# This tells ns-viewer to use your custom CLNeRF model and just render
+# the “test” split from a pre-trained checkpoint, skipping any training.
+# -------------------------------------------------------------------
+
+# 1) Trainer (we won’t actually train, just load & view)
+!!python/object:nerfstudio.engine.trainer.TrainerConfig
+_target: !!python/name:nerfstudio.engine.trainer.Trainer ''
+# don’t run any iterations
+max_num_iterations: 0
+load_config: null
+# load our checkpoint
+load_checkpoint: !!python/object/apply:pathlib.PosixPath
+- ckpts/NGPGv2_CL/colmap_ngpa_CLNerf/counter_r10_e10_total5/epoch=9_slim.ckpt
+# keep the viewer alive
+viewer:
+  quit_on_train_completion: false
+
+# 2) Data
+data:
+  type: colmap
+  data: /workspace/data/counter_sm_merged/
+  downsample: 0.5
+
+# 3) Which method / pipeline to use?
+#    We tell it to use the *VanillaPipeline*, but swap in your model.
+method_name: vanilla
+
+# 4) Pipeline configuration (Vanilla)
+pipeline:
+  _target: !!python/name:nerfstudio.pipelines.base_pipeline.VanillaPipeline ''
+  datamanager:
+    _target: !!python/name:nerfstudio.data.datamanagers.parallel_datamanager.ParallelDataManager ''
+    data: *data
+    collate_fn: !!python/name:nerfstudio.data.utils.nerfstudio_collate.nerfstudio_collate ''
+    dataparser:
+      _target: !!python/name:nerfstudio.data.dataparsers.nerfstudio_dataparser.Nerfstudio ''
+      auto_scale_poses: true
+      center_method: poses
+
+# 5) Swap in your CLNeRF model class here:
+model:
+  _target: !!python/name:clnerf.ClNeRFModel ''
+  # any model‐specific hyperparameters you need:
+  scale: 8.0
+  dim_a: 48
+  checkpoint_path: epoch=9.ckpt
+
+# 6) Output directory (for any snapshots the viewer might take)
+output_dir: outputs
+
